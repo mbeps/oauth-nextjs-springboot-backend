@@ -15,6 +15,12 @@ import java.util.Arrays;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    private final JsonLogoutSuccessHandler logoutSuccessHandler;
+
+    public SecurityConfig(JsonLogoutSuccessHandler logoutSuccessHandler) {
+        this.logoutSuccessHandler = logoutSuccessHandler;
+    }
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -30,9 +36,11 @@ public class SecurityConfig {
                 .failureUrl("http://localhost:3000/?error=auth_failed")
             )
             .logout(logout -> logout
-                .logoutSuccessUrl("http://localhost:3000")
+                .logoutUrl("/logout")
+                .logoutSuccessHandler(logoutSuccessHandler)
                 .invalidateHttpSession(true)
                 .clearAuthentication(true)
+                .deleteCookies("JSESSIONID")
             );
 
         return http.build();

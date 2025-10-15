@@ -34,14 +34,4 @@ public class AuthController {
         
         return ResponseEntity.ok(response);
     }
-
-    @PostMapping("/api/auth/logout")
-    public ResponseEntity<Map<String, Object>> logout() {
-        Map<String, Object> response = new HashMap<>();
-        response.put("message", "Logout successful");
-        response.put("redirectUrl", "http://localhost:3000");
-        
-        log.info("User logout requested");
-        return ResponseEntity.ok(response);
-    }
 }
