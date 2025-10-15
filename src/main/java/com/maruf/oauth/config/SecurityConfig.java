@@ -1,5 +1,7 @@
 package com.maruf.oauth.config;
 
+import com.maruf.oauth.service.RefreshTokenStore;
+import jakarta.servlet.http.Cookie;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,6 +25,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final OAuth2AuthenticationSuccessHandler oauth2SuccessHandler;
+    private final RefreshTokenStore refreshTokenStore;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -36,6 +39,7 @@ public class SecurityConfig {
                 .requestMatchers("/", "/login", "/error", "/webjars/**").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/api/auth/status").permitAll()
+                .requestMatchers("/api/auth/refresh").permitAll()
                 .requestMatchers("/logout").permitAll()
                 .anyRequest().authenticated()
             )
@@ -46,20 +50,39 @@ public class SecurityConfig {
             .logout(logout -> logout
                 .logoutUrl("/logout")
                 .logoutSuccessHandler((request, response, authentication) -> {
+                    // Invalidate access token
+                    if (request.getCookies() != null) {
+                        for (Cookie cookie : request.getCookies()) {
+                            if ("jwt".equals(cookie.getName())) {
+                                refreshTokenStore.invalidateAccessToken(cookie.getValue());
+                            } else if ("refresh_token".equals(cookie.getName())) {
+                                refreshTokenStore.invalidateRefreshToken(cookie.getValue());
+                            }
+                        }
+                    }
+                    
                     // Delete JWT cookie
-                    jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie("jwt", null);
-                    cookie.setHttpOnly(true);
-                    cookie.setSecure(false);
-                    cookie.setPath("/");
-                    cookie.setMaxAge(0);
-                    response.addCookie(cookie);
+                    Cookie jwtCookie = new Cookie("jwt", null);
+                    jwtCookie.setHttpOnly(true);
+                    jwtCookie.setSecure(false);
+                    jwtCookie.setPath("/");
+                    jwtCookie.setMaxAge(0);
+                    response.addCookie(jwtCookie);
+                    
+                    // Delete refresh token cookie
+                    Cookie refreshCookie = new Cookie("refresh_token", null);
+                    refreshCookie.setHttpOnly(true);
+                    refreshCookie.setSecure(false);
+                    refreshCookie.setPath("/");
+                    refreshCookie.setMaxAge(0);
+                    response.addCookie(refreshCookie);
                     
                     // Return JSON response
                     response.setStatus(200);
                     response.setContentType("application/json");
                     response.getWriter().write("{\"success\":true,\"message\":\"Logout successful\"}");
                 })
-                .deleteCookies("jwt")
+                .deleteCookies("jwt", "refresh_token")
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

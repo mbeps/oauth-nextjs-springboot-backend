@@ -1,6 +1,7 @@
 package com.maruf.oauth.config;
 
 import com.maruf.oauth.service.JwtService;
+import com.maruf.oauth.service.RefreshTokenStore;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -30,6 +31,7 @@ import java.util.Map;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final RefreshTokenStore refreshTokenStore;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -40,7 +42,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         
         if (jwt != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
+                // Check if token is invalidated
+                if (refreshTokenStore.isAccessTokenInvalidated(jwt)) {
+                    log.debug("JWT is invalidated");
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+                
                 if (jwtService.isTokenValid(jwt) && !jwtService.isTokenExpired(jwt)) {
+                    // Verify it's an access token
+                    String tokenType = jwtService.extractTokenType(jwt);
+                    if (!"access".equals(tokenType)) {
+                        log.debug("Token is not an access token");
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+                    
                     Claims claims = jwtService.extractAllClaims(jwt);
                     
                     // Reconstruct OAuth2User from JWT claims

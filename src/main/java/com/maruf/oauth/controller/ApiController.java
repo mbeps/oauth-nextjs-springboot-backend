@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -65,7 +66,7 @@ public class ApiController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ActionResponse> performAction(
             @AuthenticationPrincipal OAuth2User principal,
-            @RequestBody ActionRequest request) {
+            @Validated @RequestBody ActionRequest request) {
         
         String username = OAuth2AttributeExtractor.getStringAttribute(principal, "login");
         

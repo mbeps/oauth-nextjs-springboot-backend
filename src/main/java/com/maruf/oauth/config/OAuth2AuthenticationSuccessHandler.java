@@ -1,6 +1,7 @@
 package com.maruf.oauth.config;
 
 import com.maruf.oauth.service.JwtService;
+import com.maruf.oauth.service.RefreshTokenStore;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -13,6 +14,7 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationSu
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.Instant;
 
 @Component
 @RequiredArgsConstructor
@@ -20,9 +22,16 @@ import java.io.IOException;
 public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
     private final JwtService jwtService;
+    private final RefreshTokenStore refreshTokenStore;
 
     @Value("${frontend.url:http://localhost:3000}")
     private String frontendUrl;
+
+    @Value("${jwt.access-token-expiration:900000}") // 15 minutes
+    private Long accessTokenExpiration;
+
+    @Value("${jwt.refresh-token-expiration:604800000}") // 7 days
+    private Long refreshTokenExpiration;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, 
@@ -32,18 +41,33 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
         String username = oauth2User.getAttribute("login");
         
-        // Generate JWT token
-        String token = jwtService.generateToken(oauth2User);
+        // Generate access token (short-lived)
+        String accessToken = jwtService.generateAccessToken(oauth2User);
         
-        // Set JWT as httpOnly cookie
-        Cookie jwtCookie = new Cookie("jwt", token);
-        jwtCookie.setHttpOnly(true);
-        jwtCookie.setSecure(false); // Set to true in production with HTTPS
-        jwtCookie.setPath("/");
-        jwtCookie.setMaxAge(24 * 60 * 60); // 24 hours
-        response.addCookie(jwtCookie);
+        // Generate refresh token (long-lived)
+        String refreshToken = jwtService.generateRefreshToken(username);
         
-        log.info("JWT token generated and set in cookie for user: {}", username);
+        // Store refresh token
+        Instant refreshExpiresAt = Instant.now().plusMillis(refreshTokenExpiration);
+        refreshTokenStore.storeRefreshToken(refreshToken, username, refreshExpiresAt);
+        
+        // Set access token as httpOnly cookie
+        Cookie accessCookie = new Cookie("jwt", accessToken);
+        accessCookie.setHttpOnly(true);
+        accessCookie.setSecure(false); // Set to true in production with HTTPS
+        accessCookie.setPath("/");
+        accessCookie.setMaxAge((int) (accessTokenExpiration / 1000)); // Convert to seconds
+        response.addCookie(accessCookie);
+        
+        // Set refresh token as httpOnly cookie
+        Cookie refreshCookie = new Cookie("refresh_token", refreshToken);
+        refreshCookie.setHttpOnly(true);
+        refreshCookie.setSecure(false); // Set to true in production with HTTPS
+        refreshCookie.setPath("/");
+        refreshCookie.setMaxAge((int) (refreshTokenExpiration / 1000)); // Convert to seconds
+        response.addCookie(refreshCookie);
+        
+        log.info("Access and refresh tokens generated for user: {}", username);
         
         // Redirect to frontend dashboard
         getRedirectStrategy().sendRedirect(request, response, frontendUrl + "/dashboard");
