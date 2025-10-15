@@ -1,37 +1,46 @@
 package com.maruf.oauth.controller;
 
+import com.maruf.oauth.dto.AuthStatusResponse;
+import com.maruf.oauth.dto.UserResponse;
+import com.maruf.oauth.util.OAuth2AttributeExtractor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.HashMap;
-import java.util.Map;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @Slf4j
-@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class AuthController {
 
     @GetMapping("/api/auth/status")
-    public ResponseEntity<Map<String, Object>> getAuthStatus(@AuthenticationPrincipal OAuth2User principal) {
-        Map<String, Object> response = new HashMap<>();
+    public ResponseEntity<AuthStatusResponse> getAuthStatus(@AuthenticationPrincipal OAuth2User principal) {
         
         if (principal != null) {
-            response.put("authenticated", true);
-            response.put("user", Map.of(
-                "id", principal.getAttribute("id"),
-                "login", principal.getAttribute("login"),
-                "name", principal.getAttribute("name"),
-                "avatar_url", principal.getAttribute("avatar_url")
-            ));
-            log.info("Auth status checked for user: {}", (Object) principal.getAttribute("login"));
+            UserResponse user = UserResponse.builder()
+                    .id(OAuth2AttributeExtractor.getIntegerAttribute(principal, "id"))
+                    .login(OAuth2AttributeExtractor.getStringAttribute(principal, "login"))
+                    .name(OAuth2AttributeExtractor.getStringAttribute(principal, "name"))
+                    .email(OAuth2AttributeExtractor.getStringAttribute(principal, "email"))
+                    .avatarUrl(OAuth2AttributeExtractor.getStringAttribute(principal, "avatar_url"))
+                    .build();
+
+            log.info("Auth status checked for user: {}", user.getLogin());
+            
+            return ResponseEntity.ok(
+                AuthStatusResponse.builder()
+                    .authenticated(true)
+                    .user(user)
+                    .build()
+            );
         } else {
-            response.put("authenticated", false);
             log.info("Auth status checked - user not authenticated");
+            return ResponseEntity.ok(
+                AuthStatusResponse.builder()
+                    .authenticated(false)
+                    .build()
+            );
         }
-        
-        return ResponseEntity.ok(response);
     }
 }

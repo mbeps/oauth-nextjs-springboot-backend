@@ -1,83 +1,83 @@
 package com.maruf.oauth.controller;
 
+import com.maruf.oauth.dto.*;
+import com.maruf.oauth.util.OAuth2AttributeExtractor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.Map;
-
 @RestController
 @Slf4j
-@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class ApiController {
 
     @GetMapping("/api/public/health")
-    public ResponseEntity<Map<String, Object>> publicHealth() {
-        Map<String, Object> response = new HashMap<>();
-        response.put("status", "OK");
-        response.put("message", "Public endpoint is working");
-        response.put("timestamp", System.currentTimeMillis());
+    public ResponseEntity<PublicHealthResponse> publicHealth() {
+        PublicHealthResponse response = PublicHealthResponse.builder()
+                .status("OK")
+                .message("Public endpoint is working")
+                .timestamp(System.currentTimeMillis())
+                .build();
         
         log.info("Public health endpoint accessed");
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/api/user")
-    public ResponseEntity<Map<String, Object>> getUser(@AuthenticationPrincipal OAuth2User principal) {
-        if (principal == null) {
-            return ResponseEntity.status(401).build();
-        }
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("id", principal.getAttribute("id"));
-        response.put("login", principal.getAttribute("login"));
-        response.put("name", principal.getAttribute("name"));
-        response.put("email", principal.getAttribute("email"));
-        response.put("avatar_url", principal.getAttribute("avatar_url"));
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<UserResponse> getUser(@AuthenticationPrincipal OAuth2User principal) {
+        UserResponse response = UserResponse.builder()
+                .id(OAuth2AttributeExtractor.getIntegerAttribute(principal, "id"))
+                .login(OAuth2AttributeExtractor.getStringAttribute(principal, "login"))
+                .name(OAuth2AttributeExtractor.getStringAttribute(principal, "name"))
+                .email(OAuth2AttributeExtractor.getStringAttribute(principal, "email"))
+                .avatarUrl(OAuth2AttributeExtractor.getStringAttribute(principal, "avatar_url"))
+                .build();
         
-        log.info("User info requested for: {}", (Object) principal.getAttribute("login"));
+        log.info("User info requested for: {}", response.getLogin());
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/api/protected/data")
-    public ResponseEntity<Map<String, Object>> getProtectedData(@AuthenticationPrincipal OAuth2User principal) {
-        if (principal == null) {
-            return ResponseEntity.status(401).build();
-        }
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("message", "This is protected data");
-        response.put("user", principal.getAttribute("login"));
-        response.put("data", Map.of(
-            "items", new String[]{"Item 1", "Item 2", "Item 3"},
-            "count", 3,
-            "lastUpdated", System.currentTimeMillis()
-        ));
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ProtectedDataResponse> getProtectedData(@AuthenticationPrincipal OAuth2User principal) {
+        String username = OAuth2AttributeExtractor.getStringAttribute(principal, "login");
         
-        log.info("Protected data accessed by: {}", (Object) principal.getAttribute("login"));
+        ProtectedDataResponse.DataContent dataContent = ProtectedDataResponse.DataContent.builder()
+                .items(new String[]{"Item 1", "Item 2", "Item 3"})
+                .count(3)
+                .lastUpdated(System.currentTimeMillis())
+                .build();
+        
+        ProtectedDataResponse response = ProtectedDataResponse.builder()
+                .message("This is protected data")
+                .user(username)
+                .data(dataContent)
+                .build();
+        
+        log.info("Protected data accessed by: {}", username);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/api/protected/action")
-    public ResponseEntity<Map<String, Object>> performAction(
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ActionResponse> performAction(
             @AuthenticationPrincipal OAuth2User principal,
-            @RequestBody Map<String, Object> requestData) {
+            @RequestBody ActionRequest request) {
         
-        if (principal == null) {
-            return ResponseEntity.status(401).build();
-        }
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("message", "Action performed successfully");
-        response.put("user", principal.getAttribute("login"));
-        response.put("action", requestData.get("action"));
-        response.put("result", "Success");
-        response.put("timestamp", System.currentTimeMillis());
+        String username = OAuth2AttributeExtractor.getStringAttribute(principal, "login");
         
-        log.info("Action '{}' performed by: {}", requestData.get("action"), (Object) principal.getAttribute("login"));
+        ActionResponse response = ActionResponse.builder()
+                .message("Action performed successfully")
+                .user(username)
+                .action(request.getAction())
+                .result("Success")
+                .timestamp(System.currentTimeMillis())
+                .build();
+        
+        log.info("Action '{}' performed by: {}", request.getAction(), username);
         return ResponseEntity.ok(response);
     }
 }
