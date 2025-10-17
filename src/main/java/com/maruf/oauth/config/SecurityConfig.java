@@ -1,5 +1,6 @@
 package com.maruf.oauth.config;
 
+import com.maruf.oauth.service.JwtService;
 import com.maruf.oauth.service.RefreshTokenStore;
 import jakarta.servlet.http.Cookie;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,8 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final OAuth2AuthenticationSuccessHandler oauth2SuccessHandler;
     private final RefreshTokenStore refreshTokenStore;
+    private final JwtService jwtService;
+    private final CookieSecurityProperties cookieSecurityProperties;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -50,11 +53,14 @@ public class SecurityConfig {
             .logout(logout -> logout
                 .logoutUrl("/logout")
                 .logoutSuccessHandler((request, response, authentication) -> {
-                    // Invalidate access token
+                    // Invalidate tokens
                     if (request.getCookies() != null) {
                         for (Cookie cookie : request.getCookies()) {
                             if ("jwt".equals(cookie.getName())) {
-                                refreshTokenStore.invalidateAccessToken(cookie.getValue());
+                                // Get token expiry date for storage
+                                java.time.Instant expiresAt = jwtService.getExpirationDate(cookie.getValue()).toInstant();
+                                String username = jwtService.extractUsername(cookie.getValue());
+                                refreshTokenStore.invalidateAccessToken(cookie.getValue(), username, expiresAt);
                             } else if ("refresh_token".equals(cookie.getName())) {
                                 refreshTokenStore.invalidateRefreshToken(cookie.getValue());
                             }
@@ -62,19 +68,11 @@ public class SecurityConfig {
                     }
                     
                     // Delete JWT cookie
-                    Cookie jwtCookie = new Cookie("jwt", null);
-                    jwtCookie.setHttpOnly(true);
-                    jwtCookie.setSecure(false);
-                    jwtCookie.setPath("/");
-                    jwtCookie.setMaxAge(0);
+                    Cookie jwtCookie = createSecureCookie("jwt", null);
                     response.addCookie(jwtCookie);
                     
                     // Delete refresh token cookie
-                    Cookie refreshCookie = new Cookie("refresh_token", null);
-                    refreshCookie.setHttpOnly(true);
-                    refreshCookie.setSecure(false);
-                    refreshCookie.setPath("/");
-                    refreshCookie.setMaxAge(0);
+                    Cookie refreshCookie = createSecureCookie("refresh_token", null);
                     response.addCookie(refreshCookie);
                     
                     // Return JSON response
@@ -100,5 +98,14 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    private Cookie createSecureCookie(String name, String value) {
+        Cookie cookie = new Cookie(name, value);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(cookieSecurityProperties.isSecure());
+        cookie.setPath("/");
+        cookie.setMaxAge(0);
+        return cookie;
     }
 }

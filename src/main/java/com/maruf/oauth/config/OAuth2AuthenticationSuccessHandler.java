@@ -23,6 +23,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
     private final JwtService jwtService;
     private final RefreshTokenStore refreshTokenStore;
+    private final CookieSecurityProperties cookieSecurityProperties;
 
     @Value("${frontend.url:http://localhost:3000}")
     private String frontendUrl;
@@ -52,24 +53,28 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         refreshTokenStore.storeRefreshToken(refreshToken, username, refreshExpiresAt);
         
         // Set access token as httpOnly cookie
-        Cookie accessCookie = new Cookie("jwt", accessToken);
-        accessCookie.setHttpOnly(true);
-        accessCookie.setSecure(false); // Set to true in production with HTTPS
-        accessCookie.setPath("/");
-        accessCookie.setMaxAge((int) (accessTokenExpiration / 1000)); // Convert to seconds
+        Cookie accessCookie = createSecureCookie("jwt", accessToken, 
+                (int) (accessTokenExpiration / 1000));
         response.addCookie(accessCookie);
         
         // Set refresh token as httpOnly cookie
-        Cookie refreshCookie = new Cookie("refresh_token", refreshToken);
-        refreshCookie.setHttpOnly(true);
-        refreshCookie.setSecure(false); // Set to true in production with HTTPS
-        refreshCookie.setPath("/");
-        refreshCookie.setMaxAge((int) (refreshTokenExpiration / 1000)); // Convert to seconds
+        Cookie refreshCookie = createSecureCookie("refresh_token", refreshToken, 
+                (int) (refreshTokenExpiration / 1000));
         response.addCookie(refreshCookie);
         
         log.info("Access and refresh tokens generated for user: {}", username);
         
         // Redirect to frontend dashboard
         getRedirectStrategy().sendRedirect(request, response, frontendUrl + "/dashboard");
+    }
+
+    private Cookie createSecureCookie(String name, String value, int maxAge) {
+        Cookie cookie = new Cookie(name, value);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(cookieSecurityProperties.isSecure());
+        cookie.setPath("/");
+        cookie.setMaxAge(maxAge);
+        // Note: SameSite attribute requires Servlet 6.0+ or manual header manipulation
+        return cookie;
     }
 }

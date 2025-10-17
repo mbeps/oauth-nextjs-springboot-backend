@@ -1,5 +1,6 @@
 package com.maruf.oauth.controller;
 
+import com.maruf.oauth.config.CookieSecurityProperties;
 import com.maruf.oauth.dto.AuthStatusResponse;
 import com.maruf.oauth.dto.UserResponse;
 import com.maruf.oauth.service.JwtService;
@@ -12,10 +13,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,6 +32,7 @@ public class AuthController {
 
     private final JwtService jwtService;
     private final RefreshTokenStore refreshTokenStore;
+    private final CookieSecurityProperties cookieSecurityProperties;
 
     @Value("${jwt.access-token-expiration:900000}") // 15 minutes
     private Long accessTokenExpiration;
@@ -103,8 +103,6 @@ public class AuthController {
             // Create a minimal OAuth2User for token generation
             Map<String, Object> attributes = new HashMap<>();
             attributes.put("login", username);
-            // Note: We don't have full user details here, but for access token it's fine
-            // The frontend will continue using cached user data
             
             OAuth2User oauth2User = new DefaultOAuth2User(
                     Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")),
@@ -116,11 +114,8 @@ public class AuthController {
             String newAccessToken = jwtService.generateAccessToken(oauth2User);
 
             // Set new access token as cookie
-            Cookie accessCookie = new Cookie("jwt", newAccessToken);
-            accessCookie.setHttpOnly(true);
-            accessCookie.setSecure(false);
-            accessCookie.setPath("/");
-            accessCookie.setMaxAge((int) (accessTokenExpiration / 1000));
+            Cookie accessCookie = createSecureCookie("jwt", newAccessToken, 
+                    (int) (accessTokenExpiration / 1000));
             response.addCookie(accessCookie);
 
             log.info("Access token refreshed for user: {}", username);
@@ -133,5 +128,14 @@ public class AuthController {
             log.error("Error refreshing token: {}", e.getMessage());
             return ResponseEntity.status(500).body(Map.of("error", "Token refresh failed"));
         }
+    }
+
+    private Cookie createSecureCookie(String name, String value, int maxAge) {
+        Cookie cookie = new Cookie(name, value);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(cookieSecurityProperties.isSecure());
+        cookie.setPath("/");
+        cookie.setMaxAge(maxAge);
+        return cookie;
     }
 }
