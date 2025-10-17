@@ -6,17 +6,33 @@ spring:
       client:
         registration:
           github:
-            client-id: 
-            client-secret: 
+            client-id: GITHUB_CLIENT_ID_HERE
+            client-secret: GITHUB_CLIENT_SECRET_HERE
             scope:
               - user:email
               - read:user
-        provider:
-          github:
-            authorization-uri: https://github.com/login/oauth/authorize
-            token-uri: https://github.com/login/oauth/access_token
-            user-info-uri: https://api.github.com/user
-            user-name-attribute: id
+  data:
+    mongodb:
+      uri: MONGODB_URI_HERE
+      # Alternative configuration:
+      # host: localhost
+      # port: 27017
+      # database: oauth_app
 
 server:
   port: 8080
+
+# JWT Configuration
+jwt:
+  secret: JTW_SECRET_HERE_256
+  expiration: 86400000  # 24 hours in milliseconds
+  access-token-expiration: 900000  # 15 minutes in milliseconds
+  refresh-token-expiration: 604800000  # 7 days in milliseconds
+
+# Frontend URL for redirects
+frontend:
+  url: http://localhost:3000
+
+cookie:
+  secure: false  # Set to true in production (requires HTTPS)
+  same-site: Lax  # Options: Strict, Lax, None
