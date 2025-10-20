@@ -210,6 +210,10 @@ cookie:
 - `secure`: Whether cookies should only be sent over HTTPS (set to `false` for local development, `true` for production)
 - `same-site`: Cookie SameSite attribute for CSRF protection (use `Lax` or `Strict`)
 
+`app.security.refresh-token`:
+- `hashing-enabled`: Stores refresh tokens as SHA-256 hashes in MongoDB when `true` (recommended for production)
+- `rotation-enabled`: Issues a brand new refresh token on every refresh request and revokes the old one when `true`
+
 **For Production**: 
 - Set `cookie.secure` to `true`
 - Update `frontend.url` to your production frontend domain

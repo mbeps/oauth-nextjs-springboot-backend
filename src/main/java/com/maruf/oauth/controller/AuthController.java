@@ -1,6 +1,7 @@
 package com.maruf.oauth.controller;
 
-import com.maruf.oauth.config.CookieSecurityProperties;
+import com.maruf.oauth.config.HttpCookieFactory;
+import com.maruf.oauth.config.RefreshTokenSecurityProperties;
 import com.maruf.oauth.dto.AuthStatusResponse;
 import com.maruf.oauth.dto.UserResponse;
 import com.maruf.oauth.service.JwtService;
@@ -12,6 +13,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -21,6 +24,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,10 +43,14 @@ public class AuthController {
 
     private final JwtService jwtService;
     private final RefreshTokenStore refreshTokenStore;
-    private final CookieSecurityProperties cookieSecurityProperties;
+    private final HttpCookieFactory cookieFactory;
+    private final RefreshTokenSecurityProperties refreshTokenSecurityProperties;
 
     @Value("${jwt.access-token-expiration:900000}") // 15 minutes
     private Long accessTokenExpiration;
+    
+    @Value("${jwt.refresh-token-expiration:604800000}") // 7 days
+    private Long refreshTokenExpiration;
 
     /**
      * Returns whether the current request is authenticated and, if so, the associated profile.
@@ -133,11 +142,14 @@ public class AuthController {
 
             // Generate new access token
             String newAccessToken = jwtService.generateAccessToken(oauth2User);
+            
+            // Rotate refresh token if enabled
+            if (refreshTokenSecurityProperties.isRotationEnabled()) {
+                rotateRefreshToken(response, refreshToken, username);
+            }
 
             // Set new access token as cookie
-            Cookie accessCookie = createSecureCookie("jwt", newAccessToken, 
-                    (int) (accessTokenExpiration / 1000));
-            response.addCookie(accessCookie);
+            addCookie(response, "jwt", newAccessToken, Duration.ofMillis(accessTokenExpiration));
 
             log.info("Access token refreshed for user: {}", username);
 
@@ -157,15 +169,22 @@ public class AuthController {
      *
      * @param name   cookie name, typically identifying the token type
      * @param value  token value persisted inside the cookie
-     * @param maxAge lifetime in seconds before the cookie expires on the client
+     * @param maxAge lifetime before the cookie expires on the client
      * @author Maruf Bepary
      */
-    private Cookie createSecureCookie(String name, String value, int maxAge) {
-        Cookie cookie = new Cookie(name, value);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(cookieSecurityProperties.isSecure());
-        cookie.setPath("/");
-        cookie.setMaxAge(maxAge);
-        return cookie;
+    private void addCookie(HttpServletResponse response, String name, String value, Duration maxAge) {
+        ResponseCookie cookie = cookieFactory.buildTokenCookie(name, value, maxAge);
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+
+    private void rotateRefreshToken(HttpServletResponse response, String currentRefreshToken, String username) {
+        refreshTokenStore.invalidateRefreshToken(currentRefreshToken);
+
+        String newRefreshToken = jwtService.generateRefreshToken(username);
+        Instant refreshExpiresAt = Instant.now().plusMillis(refreshTokenExpiration);
+        refreshTokenStore.storeRefreshToken(newRefreshToken, username, refreshExpiresAt);
+        addCookie(response, "refresh_token", newRefreshToken, Duration.ofMillis(refreshTokenExpiration));
+
+        log.info("Refresh token rotated for user: {}", username);
     }
 }

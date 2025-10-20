@@ -4,11 +4,17 @@ import com.maruf.oauth.entity.InvalidatedToken;
 import com.maruf.oauth.entity.RefreshToken;
 import com.maruf.oauth.repository.InvalidatedTokenRepository;
 import com.maruf.oauth.repository.RefreshTokenRepository;
+import com.maruf.oauth.config.RefreshTokenSecurityProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
+import java.util.Optional;
 
 /**
  * Coordinates persistence of refresh and invalidated access tokens.
@@ -23,6 +29,7 @@ public class RefreshTokenStore {
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final InvalidatedTokenRepository invalidatedTokenRepository;
+    private final RefreshTokenSecurityProperties refreshTokenSecurityProperties;
 
     /**
      * Saves a refresh token record with creation and usage timestamps.
@@ -34,8 +41,9 @@ public class RefreshTokenStore {
      * @author Maruf Bepary
      */
     public void storeRefreshToken(String token, String username, Instant expiresAt) {
+        String tokenValue = applyHash(token);
         RefreshToken refreshToken = RefreshToken.builder()
-                .token(token)
+                .token(tokenValue)
                 .username(username)
                 .expiresAt(expiresAt)
                 .createdAt(Instant.now())
@@ -54,7 +62,7 @@ public class RefreshTokenStore {
      * @author Maruf Bepary
      */
     public String getUsernameFromRefreshToken(String token) {
-        return refreshTokenRepository.findByToken(token)
+        return findTokenRecord(token)
                 .map(refreshToken -> {
                     // Update last used timestamp
                     refreshToken.setLastUsed(Instant.now());
@@ -72,7 +80,8 @@ public class RefreshTokenStore {
      * @author Maruf Bepary
      */
     public void invalidateRefreshToken(String token) {
-        refreshTokenRepository.deleteByToken(token);
+        String hashedToken = applyHash(token);
+        refreshTokenRepository.deleteByToken(hashedToken);
         log.debug("Refresh token invalidated");
     }
 
@@ -107,5 +116,23 @@ public class RefreshTokenStore {
      */
     public boolean isAccessTokenInvalidated(String token) {
         return invalidatedTokenRepository.existsByToken(token);
+    }
+
+    private String applyHash(String token) {
+        if (!refreshTokenSecurityProperties.isHashingEnabled()) {
+            return token;
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashed = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(hashed);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 digest is not available", e);
+        }
+    }
+
+    private Optional<RefreshToken> findTokenRecord(String token) {
+        String hashedToken = applyHash(token);
+        return refreshTokenRepository.findByToken(hashedToken);
     }
 }

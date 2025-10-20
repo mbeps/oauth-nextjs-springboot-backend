@@ -2,18 +2,20 @@ package com.maruf.oauth.config;
 
 import com.maruf.oauth.service.JwtService;
 import com.maruf.oauth.service.RefreshTokenStore;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 
 /**
@@ -29,7 +31,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
     private final JwtService jwtService;
     private final RefreshTokenStore refreshTokenStore;
-    private final CookieSecurityProperties cookieSecurityProperties;
+    private final HttpCookieFactory cookieFactory;
 
     @Value("${frontend.url:http://localhost:3000}")
     private String frontendUrl;
@@ -68,14 +70,10 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         refreshTokenStore.storeRefreshToken(refreshToken, username, refreshExpiresAt);
         
         // Set access token as httpOnly cookie
-        Cookie accessCookie = createSecureCookie("jwt", accessToken, 
-                (int) (accessTokenExpiration / 1000));
-        response.addCookie(accessCookie);
+        addCookie(response, "jwt", accessToken, Duration.ofMillis(accessTokenExpiration));
         
         // Set refresh token as httpOnly cookie
-        Cookie refreshCookie = createSecureCookie("refresh_token", refreshToken, 
-                (int) (refreshTokenExpiration / 1000));
-        response.addCookie(refreshCookie);
+        addCookie(response, "refresh_token", refreshToken, Duration.ofMillis(refreshTokenExpiration));
         
         log.info("Access and refresh tokens generated for user: {}", username);
         
@@ -89,16 +87,11 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
      *
      * @param name   cookie name to create, such as {@code jwt} or {@code refresh_token}
      * @param value  encoded token payload placed in the cookie value
-     * @param maxAge lifetime in seconds before the cookie expires in the browser
+     * @param maxAge lifetime before the cookie expires in the browser
      * @author Maruf Bepary
      */
-    private Cookie createSecureCookie(String name, String value, int maxAge) {
-        Cookie cookie = new Cookie(name, value);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(cookieSecurityProperties.isSecure());
-        cookie.setPath("/");
-        cookie.setMaxAge(maxAge);
-        // Note: SameSite attribute requires Servlet 6.0+ or manual header manipulation
-        return cookie;
+    private void addCookie(HttpServletResponse response, String name, String value, Duration maxAge) {
+        ResponseCookie cookie = cookieFactory.buildTokenCookie(name, value, maxAge);
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 }

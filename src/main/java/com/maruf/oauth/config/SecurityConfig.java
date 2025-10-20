@@ -3,9 +3,12 @@ package com.maruf.oauth.config;
 import com.maruf.oauth.service.JwtService;
 import com.maruf.oauth.service.RefreshTokenStore;
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -16,6 +19,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.time.Duration;
 import java.util.Arrays;
 
 /**
@@ -34,7 +38,7 @@ public class SecurityConfig {
     private final OAuth2AuthenticationSuccessHandler oauth2SuccessHandler;
     private final RefreshTokenStore refreshTokenStore;
     private final JwtService jwtService;
-    private final CookieSecurityProperties cookieSecurityProperties;
+    private final HttpCookieFactory cookieFactory;
 
     /**
      * Builds the primary security filter chain covering OAuth2 login, JWT filters, and logout handling.
@@ -81,12 +85,10 @@ public class SecurityConfig {
                     }
                     
                     // Delete JWT cookie
-                    Cookie jwtCookie = createSecureCookie("jwt", null);
-                    response.addCookie(jwtCookie);
+                    writeCookie(response, "jwt", "", Duration.ZERO);
                     
                     // Delete refresh token cookie
-                    Cookie refreshCookie = createSecureCookie("refresh_token", null);
-                    response.addCookie(refreshCookie);
+                    writeCookie(response, "refresh_token", "", Duration.ZERO);
                     
                     // Return JSON response
                     response.setStatus(200);
@@ -127,12 +129,8 @@ public class SecurityConfig {
      * @param value new cookie value, {@code null} clears the cookie
      * @author Maruf Bepary
      */
-    private Cookie createSecureCookie(String name, String value) {
-        Cookie cookie = new Cookie(name, value);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(cookieSecurityProperties.isSecure());
-        cookie.setPath("/");
-        cookie.setMaxAge(0);
-        return cookie;
+    private void writeCookie(HttpServletResponse response, String name, String value, Duration maxAge) {
+        ResponseCookie cookie = cookieFactory.buildTokenCookie(name, value, maxAge);
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 }
