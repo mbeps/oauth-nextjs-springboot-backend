@@ -14,10 +14,23 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Provides consistent JSON responses for common Spring MVC errors.
+ * Keeps logging and payload formatting in one place to simplify troubleshooting.
+ *
+ * @author Maruf Bepary
+ */
 @ControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
 
+    /**
+     * Handles bean validation errors and returns field level messages.
+     * Uses maps so frontend forms can bind errors without extra parsing.
+     *
+     * @param ex raised validation exception containing binding results
+     * @author Maruf Bepary
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationErrors(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
@@ -37,6 +50,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(response);
     }
 
+    /**
+     * Converts Spring Security authentication failures into HTTP 401 responses.
+     * Includes the exception message to aid debugging login issues.
+     *
+     * @param ex authentication exception thrown by Spring Security
+     * @author Maruf Bepary
+     */
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<Map<String, Object>> handleAuthenticationException(AuthenticationException ex) {
         Map<String, Object> response = new HashMap<>();
@@ -49,6 +69,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
 
+    /**
+     * Responds with HTTP 403 when a user lacks required permissions.
+     * Avoids leaking backend details by returning a generic message.
+     *
+     * @param ex access denial raised by authorization checks
+     * @author Maruf Bepary
+     */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDeniedException(AccessDeniedException ex) {
         Map<String, Object> response = new HashMap<>();
@@ -61,6 +88,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
 
+    /**
+     * Maps {@link IllegalArgumentException} to a 400 Bad Request payload.
+     * Keeps the thrown message for clarity while maintaining consistent structure.
+     *
+     * @param ex invalid argument encountered by service or controller layers
+     * @author Maruf Bepary
+     */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgumentException(IllegalArgumentException ex) {
         Map<String, Object> response = new HashMap<>();
@@ -73,6 +107,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(response);
     }
 
+    /**
+     * Catches unexpected errors and returns a generic 500 response.
+     * Logs the exception stack trace to preserve debugging context.
+     *
+     * @param ex unhandled exception bubbled up to the controller advice
+     * @author Maruf Bepary
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
         Map<String, Object> response = new HashMap<>();

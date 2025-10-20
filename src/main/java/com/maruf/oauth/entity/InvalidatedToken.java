@@ -10,6 +10,12 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 
+/**
+ * Records access tokens that should no longer be trusted.
+ * Persists invalidation reason and expiry so the filter can reject replay attempts.
+ *
+ * @author Maruf Bepary
+ */
 @Document(collection = "invalidated_access_tokens")
 @Data
 @Builder

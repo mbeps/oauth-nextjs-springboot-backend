@@ -25,6 +25,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Validates JWT cookies on each request and rebuilds the security context when needed.
+ * Extends {@link OncePerRequestFilter} to ensure a single execution per request lifecycle.
+ *
+ * @author Maruf Bepary
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -33,6 +39,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final RefreshTokenStore refreshTokenStore;
 
+    /**
+     * Attempts to load the JWT from cookies, validate it, and populate the {@link SecurityContextHolder}.
+     * Skips processing when the token is missing, expired, or marked invalid in persistence.
+     *
+     * @param request     current HTTP request inspected for JWT cookies
+     * @param response    current HTTP response forwarded down the filter chain
+     * @param filterChain remaining filter chain that must always be invoked
+     * @author Maruf Bepary
+     */
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                    @NonNull HttpServletResponse response,
@@ -103,6 +118,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    /**
+     * Reads the JWT cookie if present.
+     * Returns {@code null} when the cookie is absent to signal that no authentication should be attempted.
+     *
+     * @param request HTTP request that may include authentication cookies
+     * @author Maruf Bepary
+     */
     private String extractJwtFromCookie(HttpServletRequest request) {
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
