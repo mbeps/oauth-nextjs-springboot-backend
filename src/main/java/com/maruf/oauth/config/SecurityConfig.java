@@ -18,6 +18,12 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 
+/**
+ * Configures Spring Security for OAuth2 login combined with JWT cookie authentication.
+ * Applies stateless session management because tokens carry user identity on each request.
+ *
+ * @author Maruf Bepary
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -30,6 +36,13 @@ public class SecurityConfig {
     private final JwtService jwtService;
     private final CookieSecurityProperties cookieSecurityProperties;
 
+    /**
+     * Builds the primary security filter chain covering OAuth2 login, JWT filters, and logout handling.
+     * Disables server side sessions to rely solely on tokens and enforces cookie cleanup during logout.
+     *
+     * @param http the mutable {@link HttpSecurity} builder provided by Spring Boot
+     * @author Maruf Bepary
+     */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -87,6 +100,12 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /**
+     * Defines CORS settings that allow the Next.js frontend to call the API.
+     * Restricts origins and headers to reduce attack surface while supporting required HTTP verbs.
+     *
+     * @author Maruf Bepary
+     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
@@ -100,6 +119,14 @@ public class SecurityConfig {
         return source;
     }
 
+    /**
+     * Creates a cookie with security defaults for logout responses.
+     * Sets {@code maxAge} to zero to instruct browsers to remove the cookie immediately.
+     *
+     * @param name  cookie identifier to overwrite or delete
+     * @param value new cookie value, {@code null} clears the cookie
+     * @author Maruf Bepary
+     */
     private Cookie createSecureCookie(String name, String value) {
         Cookie cookie = new Cookie(name, value);
         cookie.setHttpOnly(true);

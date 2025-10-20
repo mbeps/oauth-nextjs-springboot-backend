@@ -16,6 +16,12 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.time.Instant;
 
+/**
+ * Handles the OAuth2 login success flow by issuing access and refresh tokens as cookies.
+ * Bridges Spring Security's OAuth2 support with the JWT based session strategy used by the frontend.
+ *
+ * @author Maruf Bepary
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -34,8 +40,17 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     @Value("${jwt.refresh-token-expiration:604800000}") // 7 days
     private Long refreshTokenExpiration;
 
+    /**
+     * Called after OAuth2 login succeeds to generate and persist tokens, then redirect the user.
+     * Stores refresh tokens in MongoDB so logouts from one device invalidate sessions elsewhere.
+     *
+     * @param request        HTTP request originating from the OAuth2 callback
+     * @param response       HTTP response used for cookie delivery and redirect handling
+     * @param authentication completed authentication containing the OAuth2 principal
+     * @author Maruf Bepary
+     */
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request, 
+    public void onAuthenticationSuccess(HttpServletRequest request,
                                        HttpServletResponse response,
                                        Authentication authentication) throws IOException {
         
@@ -68,6 +83,15 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         getRedirectStrategy().sendRedirect(request, response, frontendUrl + "/dashboard");
     }
 
+    /**
+     * Builds a cookie with security attributes aligned to application settings.
+     * Centralises cookie creation to keep the login and refresh handlers consistent.
+     *
+     * @param name   cookie name to create, such as {@code jwt} or {@code refresh_token}
+     * @param value  encoded token payload placed in the cookie value
+     * @param maxAge lifetime in seconds before the cookie expires in the browser
+     * @author Maruf Bepary
+     */
     private Cookie createSecureCookie(String name, String value, int maxAge) {
         Cookie cookie = new Cookie(name, value);
         cookie.setHttpOnly(true);

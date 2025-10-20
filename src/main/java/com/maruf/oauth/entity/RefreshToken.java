@@ -10,6 +10,12 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 
+/**
+ * Stores refresh tokens in MongoDB for sliding session control.
+ * Indexed fields support quick lookups and automatic expiry via TTL indexes.
+ *
+ * @author Maruf Bepary
+ */
 @Document(collection = "refresh_tokens")
 @Data
 @Builder

@@ -7,6 +7,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Captures the action identifier submitted by the user.
+ * Validation annotations ensure the backend rejects empty or oversized commands early.
+ *
+ * @author Maruf Bepary
+ */
 @Data
 @Builder
 @NoArgsConstructor

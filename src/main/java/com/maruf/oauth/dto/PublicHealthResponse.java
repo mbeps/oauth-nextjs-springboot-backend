@@ -5,6 +5,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Conveys status information for the public health endpoint.
+ * Keeps payload lightweight so it can be cached and monitored easily.
+ *
+ * @author Maruf Bepary
+ */
 @Data
 @Builder
 @NoArgsConstructor

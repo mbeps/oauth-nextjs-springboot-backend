@@ -25,6 +25,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Manages authentication lifecycle endpoints such as status checks and token refresh.
+ * Coordinates JWT generation with cookie settings to match the Next.js client flow.
+ *
+ * @author Maruf Bepary
+ */
 @RestController
 @RequiredArgsConstructor
 @Slf4j
@@ -37,6 +43,13 @@ public class AuthController {
     @Value("${jwt.access-token-expiration:900000}") // 15 minutes
     private Long accessTokenExpiration;
 
+    /**
+     * Returns whether the current request is authenticated and, if so, the associated profile.
+     * Builds the DTO manually to keep tight control over which OAuth fields leave the server.
+     *
+     * @param principal the authenticated principal resolved by Spring Security, may be {@code null}
+     * @author Maruf Bepary
+     */
     @GetMapping("/api/auth/status")
     public ResponseEntity<AuthStatusResponse> getAuthStatus(@AuthenticationPrincipal OAuth2User principal) {
         
@@ -67,6 +80,14 @@ public class AuthController {
         }
     }
 
+    /**
+     * Issues a new access token when a valid refresh token cookie is presented.
+     * Reuses a minimal {@link OAuth2User} instance so downstream JWT code remains shared with login.
+     *
+     * @param request  HTTP servlet request containing authentication cookies
+     * @param response HTTP servlet response used to publish a renewed access token cookie
+     * @author Maruf Bepary
+     */
     @PostMapping("/api/auth/refresh")
     public ResponseEntity<Map<String, Object>> refreshToken(HttpServletRequest request, HttpServletResponse response) {
         // Extract refresh token from cookie
@@ -130,6 +151,15 @@ public class AuthController {
         }
     }
 
+    /**
+     * Creates an HTTP only cookie aligned with the configured security rules.
+     * Centralises cookie flags to avoid divergent settings across authentication responses.
+     *
+     * @param name   cookie name, typically identifying the token type
+     * @param value  token value persisted inside the cookie
+     * @param maxAge lifetime in seconds before the cookie expires on the client
+     * @author Maruf Bepary
+     */
     private Cookie createSecureCookie(String name, String value, int maxAge) {
         Cookie cookie = new Cookie(name, value);
         cookie.setHttpOnly(true);

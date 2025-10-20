@@ -10,10 +10,22 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Exposes public and protected API endpoints consumed by the Next.js client.
+ * Keeps responses small and log-friendly while delegating attribute parsing to dedicated helpers.
+ *
+ * @author Maruf Bepary
+ */
 @RestController
 @Slf4j
 public class ApiController {
 
+    /**
+     * Reports service health for monitoring tools and anonymous callers.
+     * Uses a builder so fields stay explicit even as telemetry needs grow.
+     *
+     * @author Maruf Bepary
+     */
     @GetMapping("/api/public/health")
     public ResponseEntity<PublicHealthResponse> publicHealth() {
         PublicHealthResponse response = PublicHealthResponse.builder()
@@ -26,6 +38,13 @@ public class ApiController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Returns the authenticated user's profile information.
+     * Relies on {@link OAuth2AttributeExtractor} to shield the controller from provider specific types.
+     *
+     * @param principal the authenticated OAuth2 user supplied by Spring Security
+     * @author Maruf Bepary
+     */
     @GetMapping("/api/user")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<UserResponse> getUser(@AuthenticationPrincipal OAuth2User principal) {
@@ -41,11 +60,18 @@ public class ApiController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Delivers sample protected data to demonstrate JWT guarded requests.
+     * Separates user identification from payload generation to simplify future storage integration.
+     *
+     * @param principal the authenticated OAuth2 user requesting protected content
+     * @author Maruf Bepary
+     */
     @GetMapping("/api/protected/data")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ProtectedDataResponse> getProtectedData(@AuthenticationPrincipal OAuth2User principal) {
         String username = OAuth2AttributeExtractor.getStringAttribute(principal, "login");
-        
+
         ProtectedDataResponse.DataContent dataContent = ProtectedDataResponse.DataContent.builder()
                 .items(new String[]{"Item 1", "Item 2", "Item 3"})
                 .count(3)
@@ -62,6 +88,14 @@ public class ApiController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Handles state changing actions for authenticated users.
+     * Validates the incoming payload and echoes a structured response for easy client side notifications.
+     *
+     * @param principal the authenticated OAuth2 user executing the action
+     * @param request   validated request payload describing the action to perform
+     * @author Maruf Bepary
+     */
     @PostMapping("/api/protected/action")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ActionResponse> performAction(
