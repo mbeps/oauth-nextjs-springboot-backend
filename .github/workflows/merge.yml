@@ -1,0 +1,56 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    name: Build and Test (Java ${{ matrix.java-version }})
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        java-version: [17, 21, 25]
+      fail-fast: false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up JDK ${{ matrix.java-version }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java-version }}
+          distribution: 'temurin'
+          cache: 'gradle'
+      
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+      
+      - name: Build (excluding tests)
+        run: ./gradlew build -x test
+      
+      - name: Run tests
+        run: ./gradlew test
+      
+      - name: Generate Javadoc
+        run: ./gradlew javadoc
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-java-${{ matrix.java-version }}
+          path: build/reports/tests/test/
+      
+      - name: Upload build reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-reports-java-${{ matrix.java-version }}
+          path: build/reports/
