@@ -1,7 +1,7 @@
 # **Backend for Next.JS & Spring Boot OAuth System**
 
 A robust OAuth 2.0 authentication backend built with Spring Boot 3 and MongoDB. 
-This server handles secure GitHub OAuth integration, JWT token generation, and session management for the [Next.JS frontend](https://github.com/mbeps/oauth-nextjs-springboot-frontend). 
+This server handles secure GitHub OAuth integration, JWT token generation, and session management for the [Next.JS frontend](https://github.com/mbeps/github-oauth-nextjs-springboot-frontend). 
 
 The application implements a dual-token authentication system with short-lived access tokens and long-lived refresh tokens, both stored as httpOnly cookies to prevent XSS attacks. 
 MongoDB provides persistent storage for refresh tokens and invalidated access tokens, ensuring secure session management and proper token revocation. 
@@ -56,7 +56,7 @@ These are the requirements needed to run the project:
 - Java 17 or higher
 - MongoDB 4.4 or higher
 - GitHub OAuth Application credentials (Client ID and Client Secret)
-- (Optional) [Next.JS frontend](https://github.com/mbeps/oauth-nextjs-springboot-frontend) running
+- (Optional) [Next.JS frontend](https://github.com/mbeps/github-oauth-nextjs-springboot-frontend) running
 
 # Stack
 These are the main technologies used in this project:
@@ -74,7 +74,7 @@ These are the main technologies used in this project:
 - [**MongoDB**](https://www.mongodb.com/): NoSQL database for storing refresh tokens and invalidated access tokens with TTL-based expiry.
 
 ## Front-End
-- [**Next.JS Frontend**](https://github.com/mbeps/oauth-nextjs-springboot-frontend): A TypeScript and React-based frontend consuming the authentication APIs.
+- [**Next.JS Frontend**](https://github.com/mbeps/github-oauth-nextjs-springboot-frontend): A TypeScript and React-based frontend consuming the authentication APIs.
 
 # Design
 
@@ -129,8 +129,8 @@ These are simple steps to run the application locally.
 
 ## 1. Clone the Project Locally
 ```sh
-git clone https://github.com/mbeps/oauth-nextjs-springboot-backend.git
-cd oauth-nextjs-springboot-backend
+git clone https://github.com/mbeps/github-oauth-nextjs-springboot-backend.git
+cd github-oauth-nextjs-springboot-backend
 ```
 
 ## 2. Set Up MongoDB
@@ -304,10 +304,10 @@ GET /api/public/health
 All the actions above can be executed through the Next.JS frontend given it is running.
 The frontend app will be running on [http://localhost:3000](http://localhost:3000) and will require the backend server to be running correctly. 
 
-More information can be found on the [Frontend for Next.JS & Spring Boot OAuth System](https://github.com/mbeps/oauth-nextjs-springboot-frontend) repository.
+More information can be found on the [Frontend for Next.JS & Spring Boot OAuth System](https://github.com/mbeps/github-oauth-nextjs-springboot-frontend) repository.
 
 # References
-- [Frontend for Next.JS & Spring Boot OAuth System Repository](https://github.com/mbeps/oauth-nextjs-springboot-frontend)
+- [Frontend for Next.JS & Spring Boot OAuth System Repository](https://github.com/mbeps/github-oauth-nextjs-springboot-frontend)
 - [Spring Boot Documentation](https://docs.spring.io/spring-boot/documentation.html)
 - [Spring Security OAuth2 Documentation](https://docs.spring.io/spring-security/reference/servlet/oauth2/index.html)
 - [GitHub OAuth Documentation](https://docs.github.com/en/apps/oauth-apps)
