@@ -4,13 +4,18 @@ import com.maruf.oauth.config.HttpCookieFactory;
 import com.maruf.oauth.config.RefreshTokenSecurityProperties;
 import com.maruf.oauth.dto.AuthStatusResponse;
 import com.maruf.oauth.dto.ErrorResponse;
+import com.maruf.oauth.dto.LoginRequest;
+import com.maruf.oauth.dto.SignupRequest;
 import com.maruf.oauth.dto.UserResponse;
+import com.maruf.oauth.entity.User;
 import com.maruf.oauth.service.JwtService;
+import com.maruf.oauth.service.LocalAuthService;
 import com.maruf.oauth.service.RefreshTokenStore;
 import com.maruf.oauth.util.OAuth2AttributeExtractor;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +30,7 @@ import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
@@ -51,6 +57,10 @@ public class AuthController {
     private final HttpCookieFactory cookieFactory;
     private final RefreshTokenSecurityProperties refreshTokenSecurityProperties;
     private final ClientRegistrationRepository clientRegistrationRepository;
+    private final LocalAuthService localAuthService;
+
+    @Value("${app.security.local-auth.enabled:false}")
+    private boolean localAuthEnabled;
 
     @Value("${jwt.access-token-expiration:900000}") // 15 minutes
     private Long accessTokenExpiration;
@@ -203,7 +213,79 @@ public class AuthController {
                 providers.add(provider);
             });
         }
+        
+        if (localAuthEnabled) {
+            Map<String, String> localProvider = new HashMap<>();
+            localProvider.put("key", "local");
+            localProvider.put("name", "Email & Password");
+            providers.add(localProvider);
+        }
+        
         return ResponseEntity.ok(providers);
+    }
+
+    @PostMapping("/api/auth/signup")
+    public ResponseEntity<?> signup(@Valid @RequestBody SignupRequest signupRequest) {
+        if (!localAuthEnabled) {
+            return ResponseEntity.status(403).body(ErrorResponse.builder()
+                    .error("access_denied")
+                    .message("Local authentication is disabled")
+                    .build());
+        }
+
+        try {
+            User user = localAuthService.register(signupRequest.getEmail(), signupRequest.getPassword(), signupRequest.getName());
+            return authenticateUser(user);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ErrorResponse.builder()
+                    .error("signup_failed")
+                    .message(e.getMessage())
+                    .build());
+        }
+    }
+
+    @PostMapping("/api/auth/login")
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest loginRequest) {
+        if (!localAuthEnabled) {
+            return ResponseEntity.status(403).body(ErrorResponse.builder()
+                    .error("access_denied")
+                    .message("Local authentication is disabled")
+                    .build());
+        }
+
+        return localAuthService.login(loginRequest.getEmail(), loginRequest.getPassword())
+                .map(this::authenticateUser)
+                .orElse(ResponseEntity.status(401).body(ErrorResponse.builder()
+                        .error("login_failed")
+                        .message("Invalid email or password")
+                        .build()));
+    }
+
+    private ResponseEntity<?> authenticateUser(User user) {
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put("id", user.getId());
+        attributes.put("login", user.getEmail());
+        attributes.put("name", user.getName());
+        attributes.put("email", user.getEmail());
+        attributes.put("avatar_url", user.getAvatarUrl());
+
+        OAuth2User oauth2User = new DefaultOAuth2User(
+                Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")),
+                attributes,
+                "login"
+        );
+
+        String accessToken = jwtService.generateAccessToken(oauth2User);
+        String refreshToken = jwtService.generateRefreshToken(user.getEmail());
+
+        Instant refreshExpiresAt = Instant.now().plusMillis(refreshTokenExpiration);
+        refreshTokenStore.storeRefreshToken(refreshToken, user.getEmail(), refreshExpiresAt);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.SET_COOKIE, cookieFactory.buildTokenCookie("jwt", accessToken, Duration.ofMillis(accessTokenExpiration)).toString());
+        headers.add(HttpHeaders.SET_COOKIE, cookieFactory.buildTokenCookie("refresh_token", refreshToken, Duration.ofMillis(refreshTokenExpiration)).toString());
+
+        return ResponseEntity.ok().headers(headers).body(Map.of("success", true));
     }
 
     /**

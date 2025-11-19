@@ -19,6 +19,14 @@ The application provides complete OAuth authentication functionality:
 - Secure callback handling and token exchange
 - Error handling for failed authentication attempts
 
+## Local Authentication (Email/Password)
+Secure email and password authentication:
+- **Toggleable**: Can be enabled/disabled via configuration (`app.security.local-auth.enabled`)
+- **Secure Storage**: Passwords are hashed using BCrypt
+- **Unified Token System**: Issues the same JWT access and refresh tokens as OAuth flows
+- **Signup & Login**: Dedicated endpoints for user registration and authentication
+- **Frontend Integration**: Frontend dynamically renders the login form if local auth is enabled
+
 ## JWT Token Management
 Token generation and validation:
 - Dual-token system with access tokens (15 minutes by default) and refresh tokens (7 days by default)
@@ -228,6 +236,8 @@ cookie:
 
 app:
   security:
+    local-auth:
+      enabled: true # Set to false to disable email/password login
     refresh-token:
       hashing-enabled: true
       rotation-enabled: true
@@ -350,7 +360,7 @@ Returns authentication status and user information if authenticated.
 GET /api/auth/providers
 ```
 
-Returns a JSON array of available OAuth providers with their keys and display names:
+Returns a JSON array of available OAuth providers with their keys and display names. If local auth is enabled, it includes a "local" provider entry:
 ```json
 [
   {
@@ -360,11 +370,39 @@ Returns a JSON array of available OAuth providers with their keys and display na
   {
     "key": "azure",
     "name": "Microsoft Entra ID"
+  },
+  {
+    "key": "local",
+    "name": "Email & Password"
   }
 ]
 ```
 
 The frontend uses this endpoint to dynamically render login buttons for only the enabled providers.
+
+## Local Authentication
+**Signup**
+```http
+POST /api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "securePassword123",
+  "name": "John Doe"
+}
+```
+
+**Login**
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "securePassword123"
+}
+```
 
 ## Logging Out
 ```http
