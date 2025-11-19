@@ -1,5 +1,6 @@
 package com.maruf.oauth.exception;
 
+import com.maruf.oauth.dto.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -124,5 +125,23 @@ public class GlobalExceptionHandler {
 
         log.error("Unexpected error: ", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
+    /**
+     * Handles insufficient OAuth scope exceptions.
+     * Returns 403 when required OAuth permissions were not granted.
+     *
+     * @param ex insufficient scope exception from OAuth validation
+     * @author Maruf Bepary
+     */
+    @ExceptionHandler(InsufficientScopeException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientScopeException(InsufficientScopeException ex) {
+        ErrorResponse response = ErrorResponse.builder()
+                .error("insufficient_scope")
+                .message(ex.getMessage())
+                .build();
+
+        log.warn("Insufficient OAuth scope: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
 }

@@ -75,22 +75,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     
                     Claims claims = jwtService.extractAllClaims(jwt);
                     
-                    // Reconstruct OAuth2User from JWT claims
-                    // Handle Integer type properly (GitHub returns Integer for id)
-                    Map<String, Object> attributes = new HashMap<>();
-                    Object idClaim = claims.get("id");
-                    if (idClaim instanceof Integer) {
-                        attributes.put("id", idClaim);
-                    } else if (idClaim instanceof Long) {
-                        attributes.put("id", ((Long) idClaim).intValue());
-                    } else if (idClaim instanceof Number) {
-                        attributes.put("id", ((Number) idClaim).intValue());
-                    }
-                    
-                    attributes.put("login", claims.get("login"));
-                    attributes.put("name", claims.get("name"));
-                    attributes.put("email", claims.get("email"));
-                    attributes.put("avatar_url", claims.get("avatar_url"));
+                    // Reconstruct OAuth2User from JWT claims with all stored attributes
+                    Map<String, Object> attributes = extractAttributesFromClaims(claims);
                     
                     OAuth2User oauth2User = new DefaultOAuth2User(
                             Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")),
@@ -134,5 +120,92 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
         return null;
+    }
+
+    /**
+     * Extracts OAuth2 user attributes from JWT claims.
+     * Handles type conversions for numeric IDs and ensures all claims are preserved.
+     *
+     * @param claims JWT claims containing user attributes
+     * @return map of attributes for OAuth2User reconstruction
+     * @author Maruf Bepary
+     */
+    private Map<String, Object> extractAttributesFromClaims(Claims claims) {
+        Map<String, Object> attributes = new HashMap<>();
+        
+        // Handle ID with proper type conversion (GitHub uses Integer, others may use Long/String)
+        Object idClaim = claims.get("id");
+        if (idClaim instanceof Number) {
+            attributes.put("id", ((Number) idClaim).intValue());
+        } else if (idClaim != null) {
+            attributes.put("id", idClaim);
+        }
+        
+        // Add all standard claims, filtering out nulls
+        addIfNotNull(attributes, "login", claims.get("login"));
+        addIfNotNull(attributes, "name", claims.get("name"));
+        addIfNotNull(attributes, "email", claims.get("email"));
+        addIfNotNull(attributes, "avatar_url", claims.get("avatar_url"));
+        
+        return attributes;
+    }
+
+    /**
+     * Adds attribute to map only if value is not null.
+     * Prevents null values from causing issues in OAuth2User construction.
+     *
+     * @param attributes target map to add attribute to
+     * @param key        attribute key
+     * @param value      attribute value to add if not null
+     * @author Maruf Bepary
+     */
+    private void addIfNotNull(Map<String, Object> attributes, String key, Object value) {
+        if (value != null) {
+            attributes.put(key, value);
+        }
+    }
+}
+
+    /**
+     * Extracts OAuth2 user attributes from JWT claims.
+     * Handles type conversions for numeric IDs and ensures all claims are preserved.
+     *
+     * @param claims JWT claims containing user attributes
+     * @return map of attributes for OAuth2User reconstruction
+     * @author Maruf Bepary
+     */
+    private Map<String, Object> extractAttributesFromClaims(Claims claims) {
+        Map<String, Object> attributes = new HashMap<>();
+        
+        // Handle ID with proper type conversion (GitHub uses Integer, others may use Long/String)
+        Object idClaim = claims.get("id");
+        if (idClaim instanceof Number) {
+            attributes.put("id", ((Number) idClaim).intValue());
+        } else if (idClaim != null) {
+            attributes.put("id", idClaim);
+        }
+        
+        // Add all standard claims, filtering out nulls
+        addIfNotNull(attributes, "login", claims.get("login"));
+        addIfNotNull(attributes, "name", claims.get("name"));
+        addIfNotNull(attributes, "email", claims.get("email"));
+        addIfNotNull(attributes, "avatar_url", claims.get("avatar_url"));
+        
+        return attributes;
+    }
+
+    /**
+     * Adds attribute to map only if value is not null.
+     * Prevents null values from causing issues in OAuth2User construction.
+     *
+     * @param attributes target map to add attribute to
+     * @param key        attribute key
+     * @param value      attribute value to add if not null
+     * @author Maruf Bepary
+     */
+    private void addIfNotNull(Map<String, Object> attributes, String key, Object value) {
+        if (value != null) {
+            attributes.put(key, value);
+        }
     }
 }
