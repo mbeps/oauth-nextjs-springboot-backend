@@ -2,6 +2,7 @@ package com.maruf.oauth.config;
 
 import com.maruf.oauth.service.JwtService;
 import com.maruf.oauth.service.RefreshTokenStore;
+import com.maruf.oauth.util.OAuth2AttributeExtractor;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -57,7 +58,12 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                                        Authentication authentication) throws IOException {
         
         OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
-        String username = oauth2User.getAttribute("login");
+        String username = OAuth2AttributeExtractor.resolveUsername(oauth2User);
+        if (username == null) {
+            log.error("Unable to determine username from OAuth2 attributes: {}", oauth2User.getAttributes());
+            getRedirectStrategy().sendRedirect(request, response, frontendUrl + "/?error=missing_profile");
+            return;
+        }
         
         // Generate access token (short-lived)
         String accessToken = jwtService.generateAccessToken(oauth2User);

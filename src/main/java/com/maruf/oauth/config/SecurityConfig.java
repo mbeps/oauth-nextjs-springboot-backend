@@ -39,6 +39,7 @@ public class SecurityConfig {
     private final RefreshTokenStore refreshTokenStore;
     private final JwtService jwtService;
     private final HttpCookieFactory cookieFactory;
+    private final OAuth2AuthenticationFailureHandler oauth2FailureHandler;
 
     /**
      * Builds the primary security filter chain covering OAuth2 login, JWT filters, and logout handling.
@@ -65,7 +66,7 @@ public class SecurityConfig {
             )
             .oauth2Login(oauth2 -> oauth2
                 .successHandler(oauth2SuccessHandler)
-                .failureUrl("http://localhost:3000/?error=auth_failed")
+                .failureHandler(oauth2FailureHandler)
             )
             .logout(logout -> logout
                 .logoutUrl("/logout")

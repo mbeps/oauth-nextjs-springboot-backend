@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserResponse {
-    private Integer id;  // Changed from Long to Integer (GitHub returns Integer)
+    private String id;
     private String login;
     private String name;
     private String email;

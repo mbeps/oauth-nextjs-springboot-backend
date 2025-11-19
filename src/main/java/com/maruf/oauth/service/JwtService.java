@@ -1,5 +1,6 @@
 package com.maruf.oauth.service;
 
+import com.maruf.oauth.util.OAuth2AttributeExtractor;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -85,14 +86,18 @@ public class JwtService {
      */
     private String generateToken(OAuth2User oauth2User, Long expiration, String type) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("id", oauth2User.getAttribute("id"));
-        claims.put("login", oauth2User.getAttribute("login"));
-        claims.put("name", oauth2User.getAttribute("name"));
-        claims.put("email", oauth2User.getAttribute("email"));
-        claims.put("avatar_url", oauth2User.getAttribute("avatar_url"));
+        claims.put("id", OAuth2AttributeExtractor.getUserId(oauth2User));
+        String resolvedUsername = OAuth2AttributeExtractor.resolveUsername(oauth2User);
+        claims.put("login", resolvedUsername);
+        claims.put("name", OAuth2AttributeExtractor.getName(oauth2User));
+        claims.put("email", OAuth2AttributeExtractor.getEmail(oauth2User));
+        claims.put("avatar_url", OAuth2AttributeExtractor.getAvatarUrl(oauth2User));
         claims.put("type", type);
 
-        String username = oauth2User.getAttribute("login");
+        String username = resolvedUsername;
+        if (username == null) {
+            throw new IllegalStateException("Unable to determine username from OAuth2 user");
+        }
         
         return Jwts.builder()
                 .claims(claims)

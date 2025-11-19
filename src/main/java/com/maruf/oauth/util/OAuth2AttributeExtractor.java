@@ -2,49 +2,165 @@ package com.maruf.oauth.util;
 
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
+import java.util.Collection;
+
 /**
  * Provides helpers for reading OAuth2 attributes with predictable types.
- * Normalises common GitHub claim shapes so controllers stay concise.
+ * Normalises common provider claim shapes so controllers stay concise.
  *
  * @author Maruf Bepary
  */
-public class OAuth2AttributeExtractor {
+public final class OAuth2AttributeExtractor {
+
+    private OAuth2AttributeExtractor() {
+    }
 
     /**
-     * Returns an attribute as an {@link Integer} when available.
-     * Handles OAuth providers that emit numeric identifiers as Integer, Long, or other {@link Number} types.
+     * Resolves a stable user identifier across OAuth providers.
+     * Prefers GitHub's {@code id} claim, otherwise falls back to Microsoft Entra's {@code oid} or {@code sub}.
      *
-     * @param principal     authenticated OAuth2 user supplying attribute data
-     * @param attributeName attribute key expected from the provider
-     * @author Maruf Bepary
+     * @param principal authenticated OAuth2 user supplying attribute data
+     * @return canonical user identifier or {@code null} if unavailable
      */
-    public static Integer getIntegerAttribute(OAuth2User principal, String attributeName) {
-        Object attribute = principal.getAttribute(attributeName);
-        if (attribute == null) {
-            return null;
+    public static String getUserId(OAuth2User principal) {
+        Object id = principal.getAttribute("id");
+        if (id != null) {
+            return id.toString();
         }
-        if (attribute instanceof Integer) {
-            return (Integer) attribute;
+
+        Object oid = principal.getAttribute("oid");
+        if (oid != null) {
+            return oid.toString();
         }
-        if (attribute instanceof Long) {
-            return ((Long) attribute).intValue();
+
+        Object sub = principal.getAttribute("sub");
+        if (sub != null) {
+            return sub.toString();
         }
-        if (attribute instanceof Number) {
-            return ((Number) attribute).intValue();
-        }
+
         return null;
     }
 
     /**
-     * Returns an attribute as a {@link String} while tolerating nulls.
-     * Uses {@link Object#toString()} to mirror Spring Security's default conversion rules.
+     * Resolves the preferred username or login identifier.
+     * Supports GitHub's {@code login} alongside Microsoft Entra's {@code preferred_username} and {@code upn}.
      *
-     * @param principal     authenticated OAuth2 user supplying attribute data
-     * @param attributeName attribute key expected from the provider
-     * @author Maruf Bepary
+     * @param principal authenticated OAuth2 user supplying attribute data
+     * @return canonical username or {@code null} if unavailable
      */
-    public static String getStringAttribute(OAuth2User principal, String attributeName) {
-        Object attribute = principal.getAttribute(attributeName);
-        return attribute != null ? attribute.toString() : null;
+    public static String getLogin(OAuth2User principal) {
+        Object login = principal.getAttribute("login");
+        if (login != null) {
+            return login.toString();
+        }
+
+        Object preferredUsername = principal.getAttribute("preferred_username");
+        if (preferredUsername != null) {
+            return preferredUsername.toString();
+        }
+
+        Object upn = principal.getAttribute("upn");
+        if (upn != null) {
+            return upn.toString();
+        }
+
+        Object email = principal.getAttribute("email");
+        if (email != null) {
+            return email.toString();
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolves a display name.
+     * Checks the common {@code name} claim and falls back to {@code displayName}.
+     *
+     * @param principal authenticated OAuth2 user supplying attribute data
+     * @return display name or {@code null} if unavailable
+     */
+    public static String getName(OAuth2User principal) {
+        Object name = principal.getAttribute("name");
+        if (name != null) {
+            return name.toString();
+        }
+
+        Object displayName = principal.getAttribute("displayName");
+        if (displayName != null) {
+            return displayName.toString();
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolves the primary email address.
+     * Handles GitHub's {@code email}, Microsoft Entra's {@code email}, and {@code emails} collection claims.
+     *
+     * @param principal authenticated OAuth2 user supplying attribute data
+     * @return email address or {@code null} if unavailable
+     */
+    public static String getEmail(OAuth2User principal) {
+        Object email = principal.getAttribute("email");
+        if (email != null) {
+            return email.toString();
+        }
+
+        Object preferredUsername = principal.getAttribute("preferred_username");
+        if (preferredUsername != null && preferredUsername.toString().contains("@")) {
+            return preferredUsername.toString();
+        }
+
+        Object emails = principal.getAttribute("emails");
+        if (emails instanceof Collection<?>) {
+            return ((Collection<?>) emails).stream()
+                    .findFirst()
+                    .map(Object::toString)
+                    .orElse(null);
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolves an avatar or profile picture URL when provided.
+     * Supports GitHub's {@code avatar_url} and providers that publish a {@code picture} claim.
+     *
+     * @param principal authenticated OAuth2 user supplying attribute data
+     * @return avatar URL or {@code null} if unavailable
+     */
+    public static String getAvatarUrl(OAuth2User principal) {
+        Object avatarUrl = principal.getAttribute("avatar_url");
+        if (avatarUrl != null) {
+            return avatarUrl.toString();
+        }
+
+        Object picture = principal.getAttribute("picture");
+        if (picture != null) {
+            return picture.toString();
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolves a stable username for token subjects and persistence.
+     * Falls back from login to email and finally to provider specific user identifiers.
+     *
+     * @param principal authenticated OAuth2 user supplying attribute data
+     * @return stable username or {@code null} when all sources are empty
+     */
+    public static String resolveUsername(OAuth2User principal) {
+        String username = getLogin(principal);
+        if (username != null) {
+            return username;
+        }
+
+        username = getEmail(principal);
+        if (username != null) {
+            return username;
+        }
+
+        return getUserId(principal);
     }
 }

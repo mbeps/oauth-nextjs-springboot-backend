@@ -49,11 +49,11 @@ public class ApiController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<UserResponse> getUser(@AuthenticationPrincipal OAuth2User principal) {
         UserResponse response = UserResponse.builder()
-                .id(OAuth2AttributeExtractor.getIntegerAttribute(principal, "id"))
-                .login(OAuth2AttributeExtractor.getStringAttribute(principal, "login"))
-                .name(OAuth2AttributeExtractor.getStringAttribute(principal, "name"))
-                .email(OAuth2AttributeExtractor.getStringAttribute(principal, "email"))
-                .avatarUrl(OAuth2AttributeExtractor.getStringAttribute(principal, "avatar_url"))
+                .id(OAuth2AttributeExtractor.getUserId(principal))
+                .login(OAuth2AttributeExtractor.resolveUsername(principal))
+                .name(OAuth2AttributeExtractor.getName(principal))
+                .email(OAuth2AttributeExtractor.getEmail(principal))
+                .avatarUrl(OAuth2AttributeExtractor.getAvatarUrl(principal))
                 .build();
         
         log.info("User info requested for: {}", response.getLogin());
@@ -70,7 +70,7 @@ public class ApiController {
     @GetMapping("/api/protected/data")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ProtectedDataResponse> getProtectedData(@AuthenticationPrincipal OAuth2User principal) {
-        String username = OAuth2AttributeExtractor.getStringAttribute(principal, "login");
+        String username = OAuth2AttributeExtractor.resolveUsername(principal);
 
         ProtectedDataResponse.DataContent dataContent = ProtectedDataResponse.DataContent.builder()
                 .items(new String[]{"Item 1", "Item 2", "Item 3"})
@@ -102,7 +102,7 @@ public class ApiController {
             @AuthenticationPrincipal OAuth2User principal,
             @Validated @RequestBody ActionRequest request) {
         
-        String username = OAuth2AttributeExtractor.getStringAttribute(principal, "login");
+        String username = OAuth2AttributeExtractor.resolveUsername(principal);
         
         ActionResponse response = ActionResponse.builder()
                 .message("Action performed successfully")
