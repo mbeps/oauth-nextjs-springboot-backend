@@ -15,6 +15,8 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -45,6 +47,11 @@ public class SecurityConfig {
     private final HttpCookieFactory cookieFactory;
     private final OAuth2AuthenticationFailureHandler oauth2FailureHandler;
 
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
     /**
      * Builds the primary security filter chain covering OAuth2 login, JWT filters, and logout handling.
      * Disables server side sessions to rely solely on tokens and enforces cookie cleanup during logout.
@@ -66,6 +73,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/status").permitAll()
                 .requestMatchers("/api/auth/providers").permitAll()
                 .requestMatchers("/api/auth/refresh").permitAll()
+                .requestMatchers("/api/auth/signup").permitAll()
+                .requestMatchers("/api/auth/login").permitAll()
                 .requestMatchers("/logout").permitAll()
                 .requestMatchers("/api/protected/**").authenticated()
                 .requestMatchers("/api/user").authenticated()
