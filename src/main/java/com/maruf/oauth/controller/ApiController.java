@@ -48,6 +48,10 @@ public class ApiController {
     @GetMapping("/api/user")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<UserResponse> getUser(@AuthenticationPrincipal OAuth2User principal) {
+        if (principal == null) {
+            log.warn("Unauthenticated access attempt to /api/user");
+            return ResponseEntity.status(401).build();
+        }
         UserResponse response = UserResponse.builder()
                 .id(OAuth2AttributeExtractor.getUserId(principal))
                 .login(OAuth2AttributeExtractor.resolveUsername(principal))
@@ -70,6 +74,10 @@ public class ApiController {
     @GetMapping("/api/protected/data")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ProtectedDataResponse> getProtectedData(@AuthenticationPrincipal OAuth2User principal) {
+        if (principal == null) {
+            log.warn("Unauthenticated access attempt to /api/protected/data");
+            return ResponseEntity.status(401).build();
+        }
         String username = OAuth2AttributeExtractor.resolveUsername(principal);
 
         ProtectedDataResponse.DataContent dataContent = ProtectedDataResponse.DataContent.builder()
@@ -102,6 +110,10 @@ public class ApiController {
             @AuthenticationPrincipal OAuth2User principal,
             @Validated @RequestBody ActionRequest request) {
         
+        if (principal == null) {
+            log.warn("Unauthenticated access attempt to /api/protected/action");
+            return ResponseEntity.status(401).build();
+        }
         String username = OAuth2AttributeExtractor.resolveUsername(principal);
         
         ActionResponse response = ActionResponse.builder()

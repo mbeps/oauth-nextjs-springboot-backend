@@ -8,11 +8,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -62,7 +64,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/status").permitAll()
                 .requestMatchers("/api/auth/refresh").permitAll()
                 .requestMatchers("/logout").permitAll()
+                .requestMatchers("/api/protected/**").authenticated()
+                .requestMatchers("/api/user").authenticated()
                 .anyRequest().authenticated()
+            )
+            .exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint(apiAuthenticationEntryPoint())
             )
             .oauth2Login(oauth2 -> oauth2
                 .successHandler(oauth2SuccessHandler)
@@ -120,6 +127,29 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    /**
+     * Creates an authentication entry point that returns 401 for API endpoints.
+     * Prevents redirects to login page for AJAX/API calls, improving REST API behavior.
+     *
+     * @author Maruf Bepary
+     */
+    @Bean
+    public AuthenticationEntryPoint apiAuthenticationEntryPoint() {
+        return (request, response, authException) -> {
+            String requestUri = request.getRequestURI();
+            
+            // For API endpoints, return 401 JSON response
+            if (requestUri != null && requestUri.startsWith("/api/")) {
+                response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"Authentication required\"}");
+            } else {
+                // For non-API endpoints, redirect to login
+                response.sendRedirect("/login");
+            }
+        };
     }
 
     /**
