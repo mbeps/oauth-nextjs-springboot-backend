@@ -19,6 +19,8 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,8 +29,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -46,6 +50,7 @@ public class AuthController {
     private final RefreshTokenStore refreshTokenStore;
     private final HttpCookieFactory cookieFactory;
     private final RefreshTokenSecurityProperties refreshTokenSecurityProperties;
+    private final ClientRegistrationRepository clientRegistrationRepository;
 
     @Value("${jwt.access-token-expiration:900000}") // 15 minutes
     private Long accessTokenExpiration;
@@ -178,6 +183,27 @@ public class AuthController {
                             .message("Token refresh failed")
                             .build());
         }
+    }
+
+    /**
+     * Returns a list of configured OAuth2 providers.
+     * Used by the frontend to dynamically render login buttons.
+     *
+     * @return List of provider details (key, name)
+     */
+    @GetMapping("/api/auth/providers")
+    public ResponseEntity<List<Map<String, String>>> getProviders() {
+        List<Map<String, String>> providers = new ArrayList<>();
+        if (clientRegistrationRepository instanceof Iterable) {
+            Iterable<ClientRegistration> iterable = (Iterable<ClientRegistration>) clientRegistrationRepository;
+            iterable.forEach(registration -> {
+                Map<String, String> provider = new HashMap<>();
+                provider.put("key", registration.getRegistrationId());
+                provider.put("name", registration.getClientName());
+                providers.add(provider);
+            });
+        }
+        return ResponseEntity.ok(providers);
     }
 
     /**

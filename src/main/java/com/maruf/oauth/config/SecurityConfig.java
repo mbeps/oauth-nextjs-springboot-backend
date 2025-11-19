@@ -5,6 +5,7 @@ import com.maruf.oauth.service.RefreshTokenStore;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -34,6 +35,7 @@ import java.util.Arrays;
 @EnableWebSecurity
 @EnableMethodSecurity
 @RequiredArgsConstructor
+@Slf4j
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -62,6 +64,7 @@ public class SecurityConfig {
                 .requestMatchers("/", "/login", "/error", "/webjars/**").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/api/auth/status").permitAll()
+                .requestMatchers("/api/auth/providers").permitAll()
                 .requestMatchers("/api/auth/refresh").permitAll()
                 .requestMatchers("/logout").permitAll()
                 .requestMatchers("/api/protected/**").authenticated()

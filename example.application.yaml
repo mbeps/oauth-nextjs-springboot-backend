@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: optional:file:.env.local[.properties]
   application:
     name: oauth
   security:
@@ -8,12 +10,37 @@ spring:
           github:
             client-id: GITHUB_CLIENT_ID_HERE
             client-secret: GITHUB_CLIENT_SECRET_HERE
+            redirect-uri: "{baseUrl}/login/oauth2/code/github"
+            client-authentication-method: client_secret_post
+            client-name: GitHub
             scope:
               - user:email
               - read:user
+          azure:
+            client-id: AZURE_CLIENT_ID_HERE
+            client-secret: AZURE_CLIENT_SECRET_HERE
+            authorization-grant-type: authorization_code
+            client-authentication-method: client_secret_post
+            redirect-uri: "{baseUrl}/login/oauth2/code/azure"
+            client-name: Microsoft Entra ID
+            scope:
+              - openid
+              - profile
+              - email
+              - offline_access
+              - User.Read
+        provider:
+          github:
+            authorization-uri: https://github.com/login/oauth/authorize
+            token-uri: https://github.com/login/oauth/access_token
+            user-info-uri: https://api.github.com/user
+            user-name-attribute: id
+          azure:
+            issuer-uri: https://login.microsoftonline.com/TENANT_ID_HERE/v2.0
+            user-name-attribute: sub
   data:
     mongodb:
-      uri: MONGODB_URI_HERE
+      uri: mongodb://localhost:27017/oauth_app
       # Alternative configuration:
       # host: localhost
       # port: 27017
@@ -21,10 +48,16 @@ spring:
 
 server:
   port: 8080
+  ssl:
+    enabled: false
+    # key-store: classpath:tls/dev-localhost.p12
+    # key-store-type: PKCS12
+    # key-store-password: changeit
+    # key-alias: dev-localhost
 
 # JWT Configuration
 jwt:
-  secret: JTW_SECRET_HERE_256
+  secret: JTW_SECRET_HERE_256_OR_LONGER_FOR_HS256_ALGORITHM
   expiration: 86400000  # 24 hours in milliseconds
   access-token-expiration: 900000  # 15 minutes in milliseconds
   refresh-token-expiration: 604800000  # 7 days in milliseconds
