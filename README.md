@@ -11,7 +11,9 @@ CORS is configured to allow cross-origin requests from the frontend whilst maint
 
 ## OAuth 2.0 Authentication
 The application provides complete OAuth authentication functionality:
-- **Dual OAuth provider support**: GitHub and Microsoft Entra ID (Azure AD)
+- **Dynamic OAuth provider support**: GitHub and/or Microsoft Entra ID (Azure AD) with runtime selection
+- Providers are dynamically discovered from configuration and exposed via `/api/auth/providers` endpoint
+- Frontend dynamically renders login buttons based on enabled providers
 - Provider-agnostic authentication with Spring Security OAuth2 Client
 - Automatic user authentication and authorisation
 - Secure callback handling and token exchange
@@ -46,10 +48,18 @@ Session termination:
 - Automatic cleanup of expired tokens via MongoDB TTL
 - Cookie deletion on logout
 
+## Dynamic Provider Discovery
+Runtime control over which OAuth providers are available:
+- **Provider endpoint**: `/api/auth/providers` returns list of enabled providers with their keys and display names
+- Providers are dynamically discovered from `application.yaml` configuration
+- Frontend fetches this list on page load and renders login buttons accordingly
+- No code changes required to enable/disable providers - simply add or remove provider configuration blocks
+
 ## Public Endpoints
 Health check endpoints for monitoring:
 - Public health check endpoint
 - Authentication status verification
+- Provider discovery endpoint
 - No authentication required
 
 # Requirements
@@ -141,8 +151,8 @@ cd github-oauth-nextjs-springboot-backend
 Ensure MongoDB is running locally on `mongodb://localhost:27017` or configure your MongoDB connection string. 
 The application will automatically create the required collections and indexes.
 
-## 3. Create OAuth Applications
-You can configure one or both OAuth providers:
+## 3. Create OAuth Applications (Optional)
+You can configure one or both OAuth providers. If you only want to support one provider, simply remove the other provider's configuration block from `application.yaml`:
 
 ### GitHub OAuth Application
 Create a GitHub OAuth application with the following settings:
@@ -334,6 +344,27 @@ Cookie: jwt=<access_token>
 ```
 
 Returns authentication status and user information if authenticated.
+
+## Discovering Available Providers
+```http
+GET /api/auth/providers
+```
+
+Returns a JSON array of available OAuth providers with their keys and display names:
+```json
+[
+  {
+    "key": "github",
+    "name": "GitHub"
+  },
+  {
+    "key": "azure",
+    "name": "Microsoft Entra ID"
+  }
+]
+```
+
+The frontend uses this endpoint to dynamically render login buttons for only the enabled providers.
 
 ## Logging Out
 ```http
