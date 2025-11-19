@@ -78,16 +78,24 @@ public class SecurityConfig {
             .logout(logout -> logout
                 .logoutUrl("/logout")
                 .logoutSuccessHandler((request, response, authentication) -> {
-                    // Invalidate tokens
+                    // Invalidate tokens with proper error handling
                     if (request.getCookies() != null) {
                         for (Cookie cookie : request.getCookies()) {
-                            if ("jwt".equals(cookie.getName())) {
-                                // Get token expiry date for storage
-                                java.time.Instant expiresAt = jwtService.getExpirationDate(cookie.getValue()).toInstant();
-                                String username = jwtService.extractUsername(cookie.getValue());
-                                refreshTokenStore.invalidateAccessToken(cookie.getValue(), username, expiresAt);
-                            } else if ("refresh_token".equals(cookie.getName())) {
-                                refreshTokenStore.invalidateRefreshToken(cookie.getValue());
+                            try {
+                                if ("jwt".equals(cookie.getName())) {
+                                    // Validate token before extracting data
+                                    String token = cookie.getValue();
+                                    if (jwtService.isTokenValid(token) && !jwtService.isTokenExpired(token)) {
+                                        java.time.Instant expiresAt = jwtService.getExpirationDate(token).toInstant();
+                                        String username = jwtService.extractUsername(token);
+                                        refreshTokenStore.invalidateAccessToken(token, username, expiresAt);
+                                    }
+                                } else if ("refresh_token".equals(cookie.getName())) {
+                                    refreshTokenStore.invalidateRefreshToken(cookie.getValue());
+                                }
+                            } catch (Exception e) {
+                                // Log but don't fail logout if token invalidation fails
+                                log.warn("Failed to invalidate token during logout: {}", e.getMessage());
                             }
                         }
                     }

@@ -1,5 +1,6 @@
 package com.maruf.oauth.util;
 
+import com.maruf.oauth.exception.InsufficientScopeException;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
 import java.util.Collection;
@@ -162,5 +163,26 @@ public final class OAuth2AttributeExtractor {
         }
 
         return getUserId(principal);
+    }
+
+    /**
+     * Validates that minimum required OAuth attributes are present.
+     * Checks for user identifier and login/email - at least one must exist.
+     *
+     * @param principal authenticated OAuth2 user to validate
+     * @throws InsufficientScopeException if required attributes are missing
+     * @author Maruf Bepary
+     */
+    public static void validateRequiredAttributes(OAuth2User principal) {
+        String userId = getUserId(principal);
+        String login = getLogin(principal);
+        
+        if (userId == null) {
+            throw new InsufficientScopeException("Missing user identifier - OAuth provider did not return user ID");
+        }
+        
+        if (login == null) {
+            throw new InsufficientScopeException("Missing username/email - required scope may not have been granted");
+        }
     }
 }

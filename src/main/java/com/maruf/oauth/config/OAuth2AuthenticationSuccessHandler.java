@@ -1,5 +1,6 @@
 package com.maruf.oauth.config;
 
+import com.maruf.oauth.exception.InsufficientScopeException;
 import com.maruf.oauth.service.JwtService;
 import com.maruf.oauth.service.RefreshTokenStore;
 import com.maruf.oauth.util.OAuth2AttributeExtractor;
@@ -58,6 +59,16 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                                        Authentication authentication) throws IOException {
         
         OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
+        
+        // Validate minimum required attributes are present
+        try {
+            OAuth2AttributeExtractor.validateRequiredAttributes(oauth2User);
+        } catch (InsufficientScopeException e) {
+            log.warn("OAuth scope validation failed: {}", e.getMessage());
+            getRedirectStrategy().sendRedirect(request, response, frontendUrl + "/?error=missing_scope");
+            return;
+        }
+        
         String username = OAuth2AttributeExtractor.resolveUsername(oauth2User);
         if (username == null) {
             log.error("Unable to determine username from OAuth2 attributes: {}", oauth2User.getAttributes());

@@ -3,6 +3,7 @@ package com.maruf.oauth.controller;
 import com.maruf.oauth.config.HttpCookieFactory;
 import com.maruf.oauth.config.RefreshTokenSecurityProperties;
 import com.maruf.oauth.dto.AuthStatusResponse;
+import com.maruf.oauth.dto.ErrorResponse;
 import com.maruf.oauth.dto.UserResponse;
 import com.maruf.oauth.service.JwtService;
 import com.maruf.oauth.service.RefreshTokenStore;
@@ -98,7 +99,7 @@ public class AuthController {
      * @author Maruf Bepary
      */
     @PostMapping("/api/auth/refresh")
-    public ResponseEntity<Map<String, Object>> refreshToken(HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<?> refreshToken(HttpServletRequest request, HttpServletResponse response) {
         // Extract refresh token from cookie
         String refreshToken = null;
         if (request.getCookies() != null) {
@@ -112,14 +113,22 @@ public class AuthController {
 
         if (refreshToken == null) {
             log.warn("Refresh token not found in cookies");
-            return ResponseEntity.status(401).body(Map.of("error", "Refresh token not found"));
+            return ResponseEntity.status(401)
+                    .body(ErrorResponse.builder()
+                            .error("token_missing")
+                            .message("Refresh token not found")
+                            .build());
         }
 
         // Validate refresh token and get username
         String username = refreshTokenStore.getUsernameFromRefreshToken(refreshToken);
         if (username == null) {
             log.warn("Invalid or expired refresh token");
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid refresh token"));
+            return ResponseEntity.status(401)
+                    .body(ErrorResponse.builder()
+                            .error("token_invalid")
+                            .message("Invalid or expired refresh token")
+                            .build());
         }
 
         try {
@@ -127,7 +136,11 @@ public class AuthController {
             if (!jwtService.isTokenValid(refreshToken) || jwtService.isTokenExpired(refreshToken)) {
                 log.warn("Refresh token is invalid or expired");
                 refreshTokenStore.invalidateRefreshToken(refreshToken);
-                return ResponseEntity.status(401).body(Map.of("error", "Refresh token expired"));
+                return ResponseEntity.status(401)
+                        .body(ErrorResponse.builder()
+                                .error("token_expired")
+                                .message("Refresh token has expired")
+                                .build());
             }
 
             // Create a minimal OAuth2User for token generation
@@ -159,7 +172,11 @@ public class AuthController {
             ));
         } catch (Exception e) {
             log.error("Error refreshing token: {}", e.getMessage());
-            return ResponseEntity.status(500).body(Map.of("error", "Token refresh failed"));
+            return ResponseEntity.status(500)
+                    .body(ErrorResponse.builder()
+                            .error("refresh_failed")
+                            .message("Token refresh failed")
+                            .build());
         }
     }
 
